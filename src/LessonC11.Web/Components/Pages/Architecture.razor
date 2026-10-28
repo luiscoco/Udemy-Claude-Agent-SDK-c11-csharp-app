@@ -1,0 +1,57 @@
+@page "/architecture"
+@layout StudentLayout
+@inject ILesson Lesson
+
+<PageTitle>C@(Lesson.Number.ToString("D2")) · @Lesson.Title</PageTitle>
+
+<section class="student-section">
+    <h2>Step 0 · Prepare the application before the workflow</h2>
+    <p>No API key is required for the local experiment. Optional live commentary requires your own API key, agent ID and environment ID. It explains the local result; it does not activate the integration discussed in the lesson.</p>
+    <p>For the optional live path, set your API key, then run <code>dotnet run --project src/LessonC11.Setup</code> if you do not already have resource IDs. The tool creates the environment before a text-only agent, saves each ID immediately, and reuses IDs already configured.</p>
+    <pre><code class="language-powershell">dotnet restore
+dotnet run --project src/LessonC11.Web</code></pre>
+    <p>Create your local .env from this safe template. The local path needs no remote resources.</p>
+    <p class="student-source">Source: .env.example</p>
+    <pre><code class="language-dotenv">ANTHROPIC_API_KEY=your_api_key
+CLAUDE_MANAGED_AGENT_ID=your_agent_id
+CLAUDE_MANAGED_ENVIRONMENT_ID=your_environment_id
+PORT=3011</code></pre>
+    <p class="student-source">Source: src/LessonC11.Setup/Program.cs</p>
+    <SourceBlock Path="LessonC11.Setup/Program.cs" />
+</section>
+
+<section class="student-section">
+    <h2>UML sequence diagram</h2>
+    <p>Read from top to bottom. Columns are participants; arrows are ordered messages. Open the full-size image or scroll horizontally to read every label.</p>
+    <p><a href="architecture.svg" target="_blank" rel="noopener">Open SVG</a> · <a href="architecture.svg" download>Download SVG</a></p>
+    <div class="student-diagram"><img src="architecture.svg" alt="UML sequence diagram showing the actual lesson application workflow"></div>
+</section>
+
+<section class="student-section">
+    <h2>Walk through the application step by step</h2>
+    <article class="student-step">
+        <h3>1 · Load scenarios and collect input</h3>
+        <p>The interactive Blazor page renders editable scenario fields from the lesson's seed input. Each button click runs on the server over the Blazor circuit; there is no public JSON API to call.</p>
+        <p class="student-source">Source: src/LessonC11.Web/Components/Pages/Home.razor</p>
+        <SourceBlock Path="LessonC11.Web/Components/Pages/Home.razor" />
+    </article>
+    <article class="student-step">
+        <h3>2 · Validate the request and execute the lesson</h3>
+        <p>The page checks the input size and the host-wide experiment gate before calling Lesson.RunAsync. The result journal is separate from experiment state.</p>
+        <p class="student-source">Source: src/LessonC11.Web/Lessons/RunJournal.cs</p>
+        <SourceBlock Path="LessonC11.Web/Lessons/RunJournal.cs" />
+    </article>
+    <article class="student-step">
+        <h3>3.1 · Apply @Lesson.Title rules</h3>
+        <p>Inherit omitted model. Clear system with null. Replace the entire tools list. Keep local timeout separate from remote interruption. Follow the conditions and evidence fields in the implementation below.</p>
+        <p class="student-source">Source: src/LessonC11.Web/Lessons/Lesson.cs</p>
+        <SourceBlock Path="LessonC11.Web/Lessons/Lesson.cs" />
+    </article>
+    <article class="student-step">
+        <h3>4 · Optional live commentary</h3>
+        <p class="student-note">This separate request asks a text-only Claude session to explain the local evidence. It does not perform the lesson's external integration.</p>
+        <p>The host creates a bounded text-only session with the Anthropic C# SDK (client.Beta.Sessions), opens the event stream before sending, and reports provider evidence. Read the interrupt path before interpreting failures.</p>
+        <p class="student-source">Source: src/LessonC11.Web/Lessons/LiveCommentary.cs</p>
+        <SourceBlock Path="LessonC11.Web/Lessons/LiveCommentary.cs" />
+    </article>
+</section>

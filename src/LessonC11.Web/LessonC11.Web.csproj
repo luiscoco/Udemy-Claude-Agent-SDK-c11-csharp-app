@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="13.3.0" />
+    <PackageReference Include="Markdig" Version="1.5.0" />
+  </ItemGroup>
+
+  <!-- Sources shown to students in the lab and architecture pages, embedded so they always match the running code. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Lessons\Lesson.cs" LogicalName="source/LessonC11.Web/Lessons/Lesson.cs" />
+    <EmbeddedResource Include="Lessons\LiveCommentary.cs" LogicalName="source/LessonC11.Web/Lessons/LiveCommentary.cs" />
+    <EmbeddedResource Include="Lessons\RunJournal.cs" LogicalName="source/LessonC11.Web/Lessons/RunJournal.cs" />
+    <EmbeddedResource Include="Components\Pages\Home.razor" LogicalName="source/LessonC11.Web/Components/Pages/Home.razor" />
+    <EmbeddedResource Include="..\LessonC11.Setup\Program.cs" LogicalName="source/LessonC11.Setup/Program.cs" Visible="false" />
+  </ItemGroup>
+
+</Project>

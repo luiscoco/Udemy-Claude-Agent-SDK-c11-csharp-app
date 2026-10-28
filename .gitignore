@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+.env*
+!.env.example
+.lab-data/
+*.log
+*.pem
+*.key
+.DS_Store

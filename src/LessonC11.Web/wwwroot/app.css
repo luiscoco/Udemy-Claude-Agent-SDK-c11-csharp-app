@@ -1,0 +1,11 @@
+/* Blazor host additions on top of the original lesson stylesheets. */
+#blazor-error-ui{display:none;position:fixed;bottom:0;left:0;width:100%;z-index:1000;padding:12px 20px;background:#fff2dc;color:#805308;box-shadow:0 -2px 8px #0003}
+#blazor-error-ui .dismiss{cursor:pointer;position:absolute;right:16px;top:10px}
+
+/* Dark-mode text the original theme left at light-mode colours. */
+[data-theme=dark] li,[data-theme=dark] .note p,[data-theme=dark] .flow small,[data-theme=dark] footer{color:#bbcee8}
+
+/* Markdown block elements share the existing commentary panel. */
+#live-answer > :first-child{margin-top:0}
+#live-answer > :last-child{margin-bottom:0}
+#live-answer p{color:inherit}

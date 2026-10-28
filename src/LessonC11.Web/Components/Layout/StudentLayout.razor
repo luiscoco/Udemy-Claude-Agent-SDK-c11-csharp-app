@@ -1,0 +1,23 @@
+@inherits LayoutComponentBase
+@inject ILesson Lesson
+
+<main class="student-shell">
+    <div class="student-brand"><a href="/">How <span>Claude Managed Agents</span> Works</a><span class="student-badge">CONCEPT @Lesson.Number.ToString("D2") / 60</span></div>
+    <div class="student-hero">
+        <div>
+            <div class="student-eyebrow">STUDENT APPLICATION GUIDE</div>
+            <h1>@Lesson.Title</h1>
+            <p>Understand the concepts, follow the source code, and verify the application yourself.</p>
+        </div>
+        <img src="astronaut.png" alt="">
+    </div>
+    <StudentNav />
+    @Body
+    <footer>LESSON C@(Lesson.Number.ToString("D2")) · LEARN → CONFIGURE → RUN → VERIFY<p><a href="/guide#learning">Learning goals</a> · <a href="/guide#run-guide">Run instructions</a> · <a href="/architecture">Workflow</a> · <a href="/#application-lab">Lab</a></p></footer>
+</main>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

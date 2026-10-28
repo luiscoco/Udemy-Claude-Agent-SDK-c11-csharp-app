@@ -1,0 +1,253 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using System.Text
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@inject ILesson Lesson
+@inject RunJournal Journal
+@inject ExperimentGate Gate
+@inject LiveCommentary Live
+
+<PageTitle>C@(Lesson.Number.ToString("D2")) · @Lesson.Title</PageTitle>
+<HeadContent>
+    <link rel="stylesheet" href="style.css" />
+    <style>body{font-size:20px} .card p,.status,.data code,.events li,.flow small,.orb small,.badge{font-size:18px} .card label{font-size:20px} .student-nav{clear:both} main{min-width:0} pre{max-width:100%;overflow:auto}</style>
+</HeadContent>
+
+<header><div class="brand">How <span>Claude Managed Agents</span> Works</div><span class="badge">CONCEPT @Lesson.Number.ToString("D2") / 60</span></header>
+<section class="hero">
+    <div>
+        <p class="eyebrow">LEARN BY RUNNING THE EXPERIMENT</p>
+        <h1>@Lesson.Title</h1>
+        <p class="lead">@Lesson.Description</p>
+    </div>
+    <img src="astronaut.png" alt="" class="astronaut">
+</section>
+<nav class="flow" aria-label="Experiment workflow"><div><b>01</b><span>Configure<br><small>Choose a scenario</small></span></div><i>→</i><div><b>02</b><span>Run<br><small>Execute the host logic</small></span></div><i>→</i><div><b>03</b><span>Verify<br><small>Inspect the evidence</small></span></div></nav>
+
+<div class="grid">
+    <article class="card">
+        <p class="eyebrow">THE EXPERIMENT</p>
+        <h2>Try the workflow</h2>
+        <label>
+            Scenario
+            <select value="@_scenario" @onchange="SelectScenario">
+                @for (var index = 0; index < Lesson.Cases.Count; index++)
+                {
+                    <option value="@index">@Lesson.Cases[index].Label</option>
+                }
+            </select>
+        </label>
+        <div>
+            @foreach (var field in _fields)
+            {
+                <label @key="field">
+                    @field.Label
+                    @switch (field.Kind)
+                    {
+                        case FieldKind.Flag:
+                            <input type="checkbox" @bind="field.Checked" />
+                            break;
+                        case FieldKind.Number:
+                            <input type="number" @bind="field.Text" />
+                            break;
+                        case FieldKind.Multiline:
+                        case FieldKind.Json:
+                            <textarea rows="4" @bind="field.Text"></textarea>
+                            break;
+                        default:
+                            <input type="text" @bind="field.Text" />
+                            break;
+                    }
+                </label>
+            }
+        </div>
+        <button disabled="@_running" @onclick="() => RunAsync(live: false)">Run local experiment ↗</button>
+        <p role="status">@_status</p>
+        <details>
+            <summary>What students learn</summary>
+            <ul>@foreach (var concept in Lesson.Concepts) { <li>@concept</li> }</ul>
+        </details>
+    </article>
+    <article class="card results">
+        <div class="result-head"><h2>Inspect the result</h2><span class="badge">LOCAL HOST</span></div>
+        @if (_result is null)
+        {
+            <p>Run a scenario to see its outcome, evidence, and execution steps.</p>
+        }
+        else
+        {
+            <div>
+                <strong class="outcome" data-state="@Wire(_result.Outcome)">@Wire(_result.Outcome)</strong>
+                <p>@_result.Summary</p>
+                <h3>Execution steps</h3>
+                <ol>@foreach (var step in _result.Steps) { <li>@step</li> }</ol>
+                <details open>
+                    <summary>Structured evidence</summary>
+                    @* Keyed per run: Prism rewrites the block, so Blazor must replace it rather than patch it. *@
+                    <pre id="evidence" @key="_runId">@_result.Evidence.ToJsonString(LessonCore.Json)</pre>
+                </details>
+            </div>
+        }
+    </article>
+</div>
+
+<section class="note"><strong>Experiment scope</strong><p>@Lesson.Scope</p></section>
+
+<section class="card">
+    <p class="eyebrow">OPTIONAL LIVE PROVIDER</p>
+    <h2>Discuss the experiment with Claude</h2>
+    <p>This creates a real text-only Managed Agents session. It explains the local result; it does not certify the experiment or test external integrations. API use may incur charges. Credentials stay on the server.</p>
+    <button disabled="@(_running || !Live.Configured)" aria-describedby="live-status" @onclick="() => RunAsync(live: true)">@(_runningLive ? "Requesting commentary…" : "Request live commentary ↗")</button>
+    <p id="live-status" role="@(_liveFailed ? "alert" : "status")" aria-live="@(_liveFailed ? "assertive" : "polite")">
+        @if (!Live.Configured)
+        {
+            <span>Live commentary is unavailable. Set ANTHROPIC_API_KEY, CLAUDE_MANAGED_AGENT_ID and CLAUDE_MANAGED_ENVIRONMENT_ID in .env, then restart the app.</span>
+        }
+        else
+        {
+            @_liveStatus
+        }
+    </p>
+    @if (_live is not null)
+    {
+        <div>
+            <div id="live-answer">@((MarkupString)CommentaryMarkdown.ToHtml(_live["answer"]?.GetValue<string>() is { Length: > 0 } answer ? answer : "No answer text was observed."))</div>
+            <details>
+                <summary>Live session evidence</summary>
+                <pre id="live-evidence" @key="_runId">@_live.ToJsonString(LessonCore.Json)</pre>
+            </details>
+        </div>
+    }
+</section>
+
+<section class="card source">
+    <h2>How it works</h2>
+    <p>The C# below is the actual lesson implementation executed by the Blazor host.</p>
+    <details>
+        <summary>Read Lessons/Lesson.cs</summary>
+        <pre id="code">@_source</pre>
+    </details>
+</section>
+<footer>CONFIGURE → RUN → VERIFY · Student sample application</footer>
+
+@code {
+    private const int MaxInputBytes = 64000;
+
+    private enum FieldKind { Flag, Number, Text, Multiline, Json }
+
+    private sealed class Field(string key, JsonNode? value)
+    {
+        public string Key { get; } = key;
+        public string Label { get; } = Friendly(key);
+        public FieldKind Kind { get; } = value?.GetValueKind() switch
+        {
+            JsonValueKind.True or JsonValueKind.False => FieldKind.Flag,
+            JsonValueKind.Number => FieldKind.Number,
+            JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.Null or null => FieldKind.Json,
+            _ => value.GetValue<string>() is var s && (s.Length > 100 || s.Contains('\n')) ? FieldKind.Multiline : FieldKind.Text,
+        };
+        public bool Checked { get; set; } = value?.GetValueKind() == JsonValueKind.True;
+        public string Text { get; set; } = value?.GetValueKind() == JsonValueKind.String ? value.GetValue<string>() : value?.ToJsonString(LessonCore.Json) ?? "null";
+
+        public JsonNode? Read() => Kind switch
+        {
+            FieldKind.Flag => Checked,
+            FieldKind.Number => double.TryParse(Text, System.Globalization.CultureInfo.InvariantCulture, out var n) ? JsonValue.Create(n) : throw new ArgumentException($"{Key} must be a finite number"),
+            FieldKind.Json => JsonNode.Parse(Text),
+            _ => Text,
+        };
+
+        private static string Friendly(string key)
+        {
+            var spaced = System.Text.RegularExpressions.Regex.Replace(key, "([a-z])([A-Z])", "$1 $2");
+            return spaced.Length == 0 ? spaced : char.ToUpperInvariant(spaced[0]) + spaced[1..];
+        }
+    }
+
+    private int _scenario;
+    private List<Field> _fields = [];
+    private bool _running;
+    private bool _runningLive;
+    private bool _liveFailed;
+    private string _liveStatus = "Ready to request live commentary.";
+    private string _status = "Loading the application…";
+    private LessonResult? _result;
+    private JsonObject? _live;
+    private Guid _runId = Guid.NewGuid();
+    private string _source = "";
+
+    protected override void OnInitialized()
+    {
+        _source = SourceFiles.Read("LessonC11.Web/Lessons/Lesson.cs");
+        Populate(0);
+        _status = "Local experiment ready. Choose a scenario or edit its inputs.";
+    }
+
+    private void SelectScenario(ChangeEventArgs e) => Populate(int.Parse((string)e.Value!));
+
+    // Each run starts from a fresh copy of the scenario seed.
+    private void Populate(int index)
+    {
+        _scenario = index;
+        _fields = [.. Lesson.Cases[index].Input.Select(entry => new Field(entry.Key, entry.Value?.DeepClone()))];
+    }
+
+    private static string Wire(Outcome outcome) => JsonSerializer.Serialize(outcome).Trim('"');
+
+    private async Task RunAsync(bool live)
+    {
+        if (!Gate.TryEnter())
+        {
+            SetStatus(live, "An experiment is already running. Wait for it to finish.");
+            return;
+        }
+        _running = true;
+        _runningLive = live;
+        if (live)
+        {
+            _live = null;
+            _liveFailed = false;
+        }
+        SetStatus(live, live ? "Waiting for Claude. This can take up to 60 seconds…" : "Running the local experiment…");
+        try
+        {
+            var input = new JsonObject();
+            foreach (var field in _fields) input[field.Key] = field.Read();
+            if (Encoding.UTF8.GetByteCount(input.ToJsonString()) > MaxInputBytes) throw new ArgumentException("Input exceeds the sample limit");
+
+            var result = await Lesson.RunAsync(input);
+            _runId = Guid.NewGuid();
+            if (live)
+            {
+                StateHasChanged();
+                _live = await Live.ExplainAsync(Lesson.Title, result);
+                _liveStatus = $"Live commentary stop reason: {_live["stopReason"]}.";
+            }
+            else
+            {
+                await Journal.AppendAsync(Lesson.Number, result);
+                _result = result;
+                _status = "Experiment recorded in the local run journal.";
+            }
+        }
+        catch (Exception error)
+        {
+            // Keep live errors beside the button that triggered the request.
+            if (live) _liveFailed = true;
+            SetStatus(live, error.Message);
+        }
+        finally
+        {
+            _running = false;
+            _runningLive = false;
+            Gate.Exit();
+        }
+    }
+
+    private void SetStatus(bool live, string message)
+    {
+        if (live) _liveStatus = message;
+        else _status = message;
+    }
+}

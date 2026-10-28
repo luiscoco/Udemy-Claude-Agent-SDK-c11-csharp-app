@@ -1,0 +1,9 @@
+@* Shows one embedded source file; Razor files are highlighted with the C# grammar. *@
+<details>
+    <summary>Read @System.IO.Path.GetFileName(Path)</summary>
+    <pre><code class="language-csharp">@SourceFiles.Read(Path)</code></pre>
+</details>
+
+@code {
+    [Parameter, EditorRequired] public string Path { get; set; } = "";
+}
